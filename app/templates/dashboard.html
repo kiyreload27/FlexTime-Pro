@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — FlexTime Pro{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+
+    <!-- Quick Actions -->
+    <div class="flex flex-wrap gap-3" x-data="{ quickHours: '' }">
+        <form method="POST" action="/entries/quick-add" class="flex gap-2 flex-1 min-w-[200px]">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="text" name="hours" placeholder="Quick add hours (e.g. 8, 8.5, 08:30-17:00)"
+                   class="input-field flex-1 text-sm" id="quick-add-input">
+            <button type="submit" class="btn-primary text-sm whitespace-nowrap" id="quick-add-btn">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Add Today
+            </button>
+        </form>
+        <form method="POST" action="/entries/copy-yesterday">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn-secondary text-sm whitespace-nowrap" id="copy-yesterday-btn">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Copy Yesterday
+            </button>
+        </form>
+    </div>
+
+    <!-- Notifications -->
+    {% for notif in notifications %}
+    <div class="p-4 rounded-xl border {% if notif.type == 'success' %}bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400{% elif notif.type == 'warning' %}bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400{% elif notif.type == 'danger' %}bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400{% else %}bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400{% endif %} flex items-center gap-3 text-sm">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div><strong>{{ notif.title }}</strong> — {{ notif.message }}</div>
+    </div>
+    {% endfor %}
+
+    <!-- Primary Metrics (4 cards) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Hours Worked -->
+        <div class="card p-5 group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all" id="card-hours-worked">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Hours Worked</span>
+                <div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+            </div>
+            <div class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">{{ format_hours(data.current_week.hours_worked) }}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">of {{ format_hours(data.current_week.target_hours) }} target</div>
+            <!-- Progress bar -->
+            <div class="mt-3 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-1000 ease-out {% if data.current_week.progress_percent >= 100 %}bg-emerald-500{% elif data.current_week.progress_percent >= 75 %}bg-indigo-500{% elif data.current_week.progress_percent >= 50 %}bg-amber-500{% else %}bg-red-500{% endif %}"
+                     style="width: {{ data.current_week.progress_percent }}%"></div>
+            </div>
+        </div>
+
+        <!-- Hours Remaining -->
+        <div class="card p-5 group hover:border-violet-300 dark:hover:border-violet-700 transition-all" id="card-remaining">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Remaining</span>
+                <div class="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                </div>
+            </div>
+            <div class="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">{{ format_hours(data.current_week.hours_remaining) }}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {% if data.current_week.hours_remaining == 0 %}Target met! 🎉{% else %}to reach {{ format_hours(data.current_week.target_hours) }}{% endif %}
+            </div>
+        </div>
+
+        <!-- Weekly Balance -->
+        <div class="card p-5 group hover:border-emerald-300 dark:hover:border-emerald-700 transition-all" id="card-weekly-balance">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">This Week</span>
+                <div class="w-8 h-8 rounded-lg {% if data.current_week.difference >= 0 %}bg-emerald-100 dark:bg-emerald-900/50{% else %}bg-red-100 dark:bg-red-900/50{% endif %} flex items-center justify-center">
+                    <svg class="w-4 h-4 {% if data.current_week.difference >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {% if data.current_week.difference >= 0 %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                        {% else %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                        {% endif %}
+                    </svg>
+                </div>
+            </div>
+            <div class="text-2xl lg:text-3xl font-bold {% if data.current_week.difference >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                {{ format_balance(data.current_week.difference) }}
+            </div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">weekly difference</div>
+        </div>
+
+        <!-- Flexitime Balance -->
+        <div class="card p-5 group hover:border-amber-300 dark:hover:border-amber-700 transition-all" id="card-flextime-balance">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Flexitime</span>
+                <div class="w-8 h-8 rounded-lg {% if data.running_balance >= 0 %}bg-emerald-100 dark:bg-emerald-900/50{% else %}bg-red-100 dark:bg-red-900/50{% endif %} flex items-center justify-center">
+                    <svg class="w-4 h-4 {% if data.running_balance >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                </div>
+            </div>
+            <div class="text-2xl lg:text-3xl font-bold {% if data.running_balance >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                {{ format_balance(data.running_balance) }}
+            </div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">running balance</div>
+        </div>
+    </div>
+
+    <!-- Secondary Metrics (3 cards) -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="card p-5" id="card-monthly">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Monthly</span>
+            <div class="text-xl font-bold text-slate-900 dark:text-white mt-2">{{ format_hours(data.monthly_hours) }}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">of {{ format_hours(data.monthly_target) }}</div>
+        </div>
+        <div class="card p-5" id="card-yearly">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Yearly</span>
+            <div class="text-xl font-bold text-slate-900 dark:text-white mt-2">{{ format_hours(data.yearly_hours) }}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">of {{ format_hours(data.yearly_target) }}</div>
+        </div>
+        <div class="card p-5" id="card-avg-weekly">
+            <span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Avg / Week</span>
+            <div class="text-xl font-bold text-slate-900 dark:text-white mt-2">{{ format_hours(data.avg_weekly_hours) }}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">avg {{ format_hours(data.avg_daily_hours) }}/day</div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Weekly Hours Chart -->
+        <div class="card p-5" id="chart-weekly-container">
+            <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Weekly Hours</h3>
+            <div class="h-48 lg:h-56">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Monthly Totals Chart -->
+        <div class="card p-5" id="chart-monthly-container">
+            <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Monthly Totals</h3>
+            <div class="h-48 lg:h-56">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Chart (full width) -->
+    <div class="card p-5" id="chart-balance-container">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Running Flexitime Balance</h3>
+        <div class="h-48 lg:h-56">
+            <canvas id="balanceChart"></canvas>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="/static/js/charts.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const weeklyData = {{ weekly_chart_json | safe }};
+        const monthlyData = {{ monthly_chart_json | safe }};
+        const balanceData = {{ balance_chart_json | safe }};
+
+        if (weeklyData.labels && weeklyData.labels.length) {
+            initWeeklyChart('weeklyChart', weeklyData);
+        }
+        if (monthlyData.labels && monthlyData.labels.length) {
+            initMonthlyChart('monthlyChart', monthlyData);
+        }
+        if (balanceData.labels && balanceData.labels.length) {
+            initBalanceChart('balanceChart', balanceData);
+        }
+    });
+</script>
+{% endblock %}

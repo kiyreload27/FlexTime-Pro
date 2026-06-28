@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Week {{ week }} — FlexTime Pro{% endblock %}
+{% block page_title %}Week {{ week }}, {{ year }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+
+    <!-- Week Navigation -->
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-2">
+            <a href="/entries/week/{{ prev_year }}/{{ prev_week }}" class="btn-secondary text-sm p-2" id="prev-week-btn" title="Previous week">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            <span class="text-sm font-medium text-slate-600 dark:text-slate-400">
+                {{ format_date(days[0].date, settings.date_format) }} — {{ format_date(days[6].date, settings.date_format) }}
+            </span>
+            <a href="/entries/week/{{ next_year }}/{{ next_week }}" class="btn-secondary text-sm p-2" id="next-week-btn" title="Next week">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+        <div class="flex items-center gap-2">
+            <form method="POST" action="/entries/duplicate-week" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="source_year" value="{{ prev_year }}">
+                <input type="hidden" name="source_week" value="{{ prev_week }}">
+                <input type="hidden" name="target_year" value="{{ year }}">
+                <input type="hidden" name="target_week" value="{{ week }}">
+                <button type="submit" class="btn-secondary text-xs" id="duplicate-week-btn" title="Copy last week's entries">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    Duplicate Last Week
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Week Summary Bar -->
+    <div class="card p-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Worked</div>
+                <div class="text-lg font-bold text-slate-900 dark:text-white">{{ format_hours(summary.hours_worked) }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Remaining</div>
+                <div class="text-lg font-bold text-slate-900 dark:text-white">{{ format_hours(summary.hours_remaining) }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Difference</div>
+                <div class="text-lg font-bold {% if summary.difference >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">{{ format_balance(summary.difference) }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Flexitime</div>
+                <div class="text-lg font-bold {% if running_balance >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">{{ format_balance(running_balance) }}</div>
+            </div>
+        </div>
+        <!-- Progress -->
+        <div class="mt-3 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500 {% if summary.progress_percent >= 100 %}bg-emerald-500{% elif summary.progress_percent >= 75 %}bg-indigo-500{% else %}bg-amber-500{% endif %}"
+                 style="width: {{ summary.progress_percent }}%"></div>
+        </div>
+    </div>
+
+    <!-- Daily Entries -->
+    <div class="space-y-3">
+        {% for day in days %}
+        <div class="card p-4 {% if day.is_today %}ring-2 ring-indigo-500 dark:ring-indigo-400{% endif %} {% if not day.is_working_day %}opacity-60{% endif %}"
+             x-data="{ editing: {% if day.is_today and not day.entry %}true{% else %}false{% endif %} }" id="day-{{ day.date }}">
+
+            <div class="flex items-center justify-between">
+                <!-- Day info -->
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold flex-shrink-0
+                        {% if day.is_today %}bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300
+                        {% elif day.entry and day.entry.hours_worked >= settings.daily_target %}bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300
+                        {% elif day.entry and day.entry.hours_worked > 0 %}bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300
+                        {% else %}bg-slate-100 dark:bg-slate-800 text-slate-500{% endif %}">
+                        {{ day.date.day }}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="font-medium text-sm">{{ day.name }}{% if day.is_today %} <span class="text-indigo-500 text-xs">(Today)</span>{% endif %}</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400">{{ format_date(day.date, settings.date_format) }}</div>
+                    </div>
+                </div>
+
+                <!-- Hours / status -->
+                <div class="flex items-center gap-3">
+                    {% if day.entry %}
+                    <div class="text-right">
+                        <div class="font-semibold">{{ format_hours(day.entry.hours_worked) }}</div>
+                        {% if day.entry.leave_type and day.entry.leave_type.code != 'WORK' %}
+                        <span class="text-xs px-2 py-0.5 rounded-full" style="background-color: {{ day.entry.leave_type.colour }}20; color: {{ day.entry.leave_type.colour }}">{{ day.entry.leave_type.name }}</span>
+                        {% endif %}
+                        {% if day.entry.notes %}
+                        <div class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[120px]">{{ day.entry.notes }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <button @click="editing = !editing" class="btn-secondary p-2 text-xs" :title="editing ? 'Close' : 'Edit'">
+                        <svg x-show="!editing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        <svg x-show="editing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Entry form -->
+            <div x-show="editing" x-transition class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <form method="POST" action="/entries/save" class="space-y-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="date" value="{{ day.date }}">
+                    <input type="hidden" name="return_url" value="/entries/week/{{ year }}/{{ week }}">
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Hours</label>
+                            <input type="text" name="hours_input"
+                                   value="{% if day.entry %}{{ day.entry.hours_worked }}{% endif %}"
+                                   placeholder="e.g. 8, 8.5, 08:30-17:00"
+                                   class="input-field text-sm" id="hours-{{ day.date }}">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Start</label>
+                            <input type="time" name="start_time"
+                                   value="{% if day.entry and day.entry.start_time %}{{ day.entry.start_time.strftime('%H:%M') }}{% endif %}"
+                                   class="input-field text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">End</label>
+                            <input type="time" name="end_time"
+                                   value="{% if day.entry and day.entry.end_time %}{{ day.entry.end_time.strftime('%H:%M') }}{% endif %}"
+                                   class="input-field text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Break (min)</label>
+                            <input type="number" name="break_minutes"
+                                   value="{{ day.entry.break_minutes if day.entry else 0 }}"
+                                   min="0" step="5" class="input-field text-sm">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Leave Type</label>
+                            <select name="leave_type_id" class="input-field text-sm">
+                                <option value="">Normal Work</option>
+                                {% for lt in leave_types %}
+                                {% if lt.code != 'WORK' %}
+                                <option value="{{ lt.id }}" {% if day.entry and day.entry.leave_type_id == lt.id %}selected{% endif %}>{{ lt.name }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Notes</label>
+                            <input type="text" name="notes"
+                                   value="{{ day.entry.notes or '' if day.entry else '' }}"
+                                   placeholder="Optional notes"
+                                   class="input-field text-sm">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <div class="flex gap-2">
+                            <button type="submit" class="btn-primary text-sm" id="save-{{ day.date }}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                Save
+                            </button>
+                            <button type="button" @click="editing = false" class="btn-secondary text-sm">Cancel</button>
+                        </div>
+                        {% if day.entry %}
+                        <form method="POST" action="/entries/delete/{{ day.entry.id }}" class="inline" onsubmit="return confirm('Delete this entry?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="return_url" value="/entries/week/{{ year }}/{{ week }}">
+                            <button type="submit" class="text-red-500 hover:text-red-700 text-sm p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}History — FlexTime Pro{% endblock %}
+{% block page_title %}History{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+
+    <!-- Search -->
+    <form method="GET" action="/history/" class="flex gap-3">
+        <div class="relative flex-1">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" name="search" value="{{ search }}" placeholder="Search by week, year, or notes..." class="input-field pl-10 text-sm" id="history-search">
+        </div>
+        <select name="sort" class="input-field w-auto text-sm" onchange="this.form.submit()">
+            <option value="desc" {% if sort == 'desc' %}selected{% endif %}>Newest first</option>
+            <option value="asc" {% if sort == 'asc' %}selected{% endif %}>Oldest first</option>
+        </select>
+        <button type="submit" class="btn-primary text-sm">Search</button>
+    </form>
+
+    <!-- Results count -->
+    <p class="text-sm text-slate-500 dark:text-slate-400">{{ weeks | length }} week{{ 's' if weeks | length != 1 }} found</p>
+
+    <!-- Table (desktop) / Cards (mobile) -->
+    {% if weeks %}
+    <!-- Desktop table -->
+    <div class="card overflow-hidden hidden sm:block">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm" id="history-table">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                        <th class="py-3 px-4 text-left font-semibold text-slate-600 dark:text-slate-300">Week</th>
+                        <th class="py-3 px-4 text-left font-semibold text-slate-600 dark:text-slate-300">Date Range</th>
+                        <th class="py-3 px-4 text-right font-semibold text-slate-600 dark:text-slate-300">Hours</th>
+                        <th class="py-3 px-4 text-right font-semibold text-slate-600 dark:text-slate-300">Difference</th>
+                        <th class="py-3 px-4 text-right font-semibold text-slate-600 dark:text-slate-300">Balance</th>
+                        <th class="py-3 px-4"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for w in weeks %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
+                        onclick="window.location='/entries/week/{{ w.year }}/{{ w.week }}'" id="week-row-{{ w.year }}-{{ w.week }}">
+                        <td class="py-3 px-4 font-medium">W{{ w.week }}</td>
+                        <td class="py-3 px-4 text-slate-600 dark:text-slate-400">{{ w.date_range }}</td>
+                        <td class="py-3 px-4 text-right font-semibold">{{ format_hours(w.hours_worked) }}</td>
+                        <td class="py-3 px-4 text-right font-semibold {% if w.difference >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                            {{ format_balance(w.difference) }}
+                        </td>
+                        <td class="py-3 px-4 text-right font-semibold {% if w.running_balance >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                            {{ format_balance(w.running_balance) }}
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mobile cards -->
+    <div class="space-y-3 sm:hidden">
+        {% for w in weeks %}
+        <a href="/entries/week/{{ w.year }}/{{ w.week }}" class="card p-4 block hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <span class="font-semibold">Week {{ w.week }}, {{ w.year }}</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 block">{{ w.date_range }}</span>
+                </div>
+                <span class="font-bold">{{ format_hours(w.hours_worked) }}</span>
+            </div>
+            <div class="flex justify-between text-xs">
+                <span class="{% if w.difference >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">{{ format_balance(w.difference) }}</span>
+                <span class="{% if w.running_balance >= 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">Balance: {{ format_balance(w.running_balance) }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card p-12 text-center">
+        <svg class="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <p class="text-slate-500 dark:text-slate-400">No entries found. Start logging your hours!</p>
+        <a href="/entries/" class="btn-primary mt-4 inline-block">Add Entry</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

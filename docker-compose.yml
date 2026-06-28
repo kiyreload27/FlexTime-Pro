@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: flextime-pro
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+    environment:
+      - APP_ENV=production
+      - DEBUG=false
+      - DATA_DIR=/app/data
+      - BACKUP_DIR=/app/backups
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=changeme
+      - SECRET_KEY=generate_a_secure_random_key_here

@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@source "../../templates";
+@source "../../static/js";
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+}
+
+@import "./custom.css";

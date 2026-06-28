@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Settings — FlexTime Pro{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in max-w-2xl">
+
+    {% if saved %}
+    <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-400 text-sm flex items-center gap-3">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        <span>{% if saved == 'backup' %}Backup created successfully{% else %}Settings saved successfully{% endif %}</span>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm flex items-center gap-3">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Work Settings -->
+    <form method="POST" action="/settings/" class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="card p-6 space-y-5">
+            <h3 class="text-base font-semibold flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Work Settings
+            </h3>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Weekly Target (hours)</label>
+                    <input type="number" name="weekly_target" value="{{ settings.weekly_target }}" step="0.5" min="0" max="168" class="input-field" id="settings-weekly-target">
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Daily Target (hours)</label>
+                    <input type="number" name="daily_target" value="{{ settings.daily_target }}" step="0.5" min="0" max="24" class="input-field" id="settings-daily-target">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 block">Working Days</label>
+                <div class="flex flex-wrap gap-2">
+                    {% set day_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+                    {% set working = settings.get_working_days_list() %}
+                    {% for i in range(1, 8) %}
+                    <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors">
+                        <input type="checkbox" name="working_day_{{ i }}" value="1" {% if i in working %}checked{% endif %}
+                               class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-sm">{{ day_labels[i-1] }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Lunch Deduction (minutes)</label>
+                <input type="number" name="lunch_deduction" value="{{ settings.lunch_deduction }}" step="5" min="0" max="120" class="input-field w-32" id="settings-lunch">
+            </div>
+        </div>
+
+        <!-- Display Settings -->
+        <div class="card p-6 space-y-5">
+            <h3 class="text-base font-semibold flex items-center gap-2">
+                <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+                Display
+            </h3>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Theme</label>
+                    <select name="theme" class="input-field" id="settings-theme">
+                        <option value="dark" {% if settings.theme == 'dark' %}selected{% endif %}>Dark</option>
+                        <option value="light" {% if settings.theme == 'light' %}selected{% endif %}>Light</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Date Format</label>
+                    <select name="date_format" class="input-field" id="settings-date-format">
+                        <option value="DD/MM/YYYY" {% if settings.date_format == 'DD/MM/YYYY' %}selected{% endif %}>DD/MM/YYYY</option>
+                        <option value="MM/DD/YYYY" {% if settings.date_format == 'MM/DD/YYYY' %}selected{% endif %}>MM/DD/YYYY</option>
+                        <option value="YYYY-MM-DD" {% if settings.date_format == 'YYYY-MM-DD' %}selected{% endif %}>YYYY-MM-DD</option>
+                        <option value="DD.MM.YYYY" {% if settings.date_format == 'DD.MM.YYYY' %}selected{% endif %}>DD.MM.YYYY</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Time Format</label>
+                    <select name="time_format" class="input-field" id="settings-time-format">
+                        <option value="24h" {% if settings.time_format == '24h' %}selected{% endif %}>24-hour</option>
+                        <option value="12h" {% if settings.time_format == '12h' %}selected{% endif %}>12-hour</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">First Day of Week</label>
+                    <select name="first_day_of_week" class="input-field" id="settings-first-day">
+                        <option value="1" {% if settings.first_day_of_week == 1 %}selected{% endif %}>Monday</option>
+                        <option value="6" {% if settings.first_day_of_week == 6 %}selected{% endif %}>Saturday</option>
+                        <option value="7" {% if settings.first_day_of_week == 7 %}selected{% endif %}>Sunday</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="save-settings-btn">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Save Settings
+        </button>
+    </form>
+
+    <!-- Change Password -->
+    <div class="card p-6 space-y-5" {% if change_password %}x-data="{ open: true }"{% else %}x-data="{ open: false }"{% endif %}>
+        <button @click="open = !open" class="w-full flex items-center justify-between">
+            <h3 class="text-base font-semibold flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Change Password
+            </h3>
+            <svg :class="{ 'rotate-180': open }" class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+
+        <form x-show="open" x-transition method="POST" action="/settings/change-password" class="space-y-4 pt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            {% if not user.force_password_change %}
+            <div>
+                <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Current Password</label>
+                <input type="password" name="current_password" class="input-field" required autocomplete="current-password">
+            </div>
+            {% endif %}
+            <div>
+                <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">New Password</label>
+                <input type="password" name="new_password" class="input-field" required minlength="8" autocomplete="new-password">
+            </div>
+            <div>
+                <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Confirm Password</label>
+                <input type="password" name="confirm_password" class="input-field" required minlength="8" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn-primary">Change Password</button>
+        </form>
+    </div>
+
+    <!-- Backup -->
+    <div class="card p-6">
+        <h3 class="text-base font-semibold flex items-center gap-2 mb-4">
+            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Database Backup
+        </h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Create a manual backup of your database. Automatic backups are created daily.</p>
+        <form method="POST" action="/settings/backup">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn-secondary" id="backup-btn">Create Backup Now</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

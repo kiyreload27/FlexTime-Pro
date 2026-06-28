@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Login — FlexTime Pro{% endblock %}
+
+{% block auth_content %}
+<div class="w-full max-w-md">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl shadow-2xl shadow-indigo-500/30 mb-4">
+            <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+        <h1 class="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-violet-600 bg-clip-text text-transparent">FlexTime Pro</h1>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Professional flexitime tracking</p>
+    </div>
+
+    <!-- Login card -->
+    <div class="card p-8">
+        {% if error %}
+        <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm flex items-center gap-3">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/login" class="space-y-5" id="login-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div>
+                <label for="username" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Username</label>
+                <input type="text" id="username" name="username" value="{{ username | default('', true) }}"
+                       class="input-field" placeholder="Enter your username"
+                       autofocus required autocomplete="username">
+            </div>
+
+            <div>
+                <label for="password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Password</label>
+                <input type="password" id="password" name="password"
+                       class="input-field" placeholder="Enter your password"
+                       required autocomplete="current-password">
+            </div>
+
+            <div class="flex items-center justify-between">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="remember" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-slate-800">
+                    <span class="text-sm text-slate-600 dark:text-slate-400">Remember me</span>
+                </label>
+            </div>
+
+            <button type="submit" class="btn-primary w-full" id="login-submit">
+                Sign In
+            </button>
+        </form>
+    </div>
+
+    <p class="text-center text-xs text-slate-400 dark:text-slate-600 mt-6">
+        FlexTime Pro v1.0.0 — Self-Hosted
+    </p>
+</div>
+{% endblock %}

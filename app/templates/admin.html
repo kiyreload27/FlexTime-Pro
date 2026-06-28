@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}User Management — FlexTime Pro{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in" x-data="{ showModal: false }">
+
+    {% if saved %}
+    <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-400 text-sm flex items-center gap-3">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        <span>{{ saved }}</span>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm flex items-center gap-3">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Header Actions -->
+    <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-800 dark:text-white">Active Accounts</h2>
+        <button @click="showModal = true" class="btn-primary text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Create User
+        </button>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                    <tr>
+                        <th class="py-3 px-4 font-semibold">User</th>
+                        <th class="py-3 px-4 font-semibold">Role</th>
+                        <th class="py-3 px-4 font-semibold">Status</th>
+                        <th class="py-3 px-4 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for u in users %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td class="py-3 px-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-semibold text-xs">
+                                    {{ u.display_name[0] | upper if u.display_name else u.username[0] | upper }}
+                                </div>
+                                <div>
+                                    <div class="font-medium text-slate-900 dark:text-white">{{ u.display_name or u.username }}</div>
+                                    <div class="text-xs text-slate-500">@{{ u.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if u.is_admin %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Admin</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400">Employee</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if u.is_active %}
+                            <span class="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Active
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400 text-xs font-medium">
+                                <span class="w-2 h-2 rounded-full bg-red-500"></span> Inactive
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-right space-x-2">
+                            {% if u.id != user.id %}
+                            <form method="POST" action="/admin/users/{{ u.id }}/reset-password" class="inline" onsubmit="return confirm('Reset password to default (changeme) for {{ u.username }}?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 text-xs font-medium bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded">Reset Password</button>
+                            </form>
+                            <form method="POST" action="/admin/users/{{ u.id }}/toggle-status" class="inline" onsubmit="return confirm('{{ "Deactivate" if u.is_active else "Activate" }} account for {{ u.username }}?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="{% if u.is_active %}text-red-600 hover:text-red-900 dark:text-red-400 bg-red-50 dark:bg-red-900/20{% else %}text-emerald-600 hover:text-emerald-900 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20{% endif %} text-xs font-medium px-2 py-1 rounded transition-colors">
+                                    {{ "Deactivate" if u.is_active else "Activate" }}
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="text-xs text-slate-400 italic">Current User</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div x-show="showModal" x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+         @click.self="showModal = false" style="display: none;">
+
+        <div class="card w-full max-w-md p-6 space-y-5" @click.stop>
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Create New User</h3>
+                <button @click="showModal = false" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form method="POST" action="/admin/users/create" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div>
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Username</label>
+                    <input type="text" name="username" class="input-field" required pattern="[a-zA-Z0-9_.-]+" title="Alphanumeric, dots, dashes, underscores only">
+                </div>
+                
+                <div>
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Display Name</label>
+                    <input type="text" name="display_name" class="input-field" placeholder="e.g. John Doe">
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="is_admin" name="is_admin" value="1" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500">
+                    <label for="is_admin" class="text-sm text-slate-700 dark:text-slate-300">Grant Administrator Access</label>
+                </div>
+                
+                <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p class="text-xs text-blue-700 dark:text-blue-400">
+                        <strong>Note:</strong> The default password will be set to <code>changeme</code>. The user will be forced to change it upon first login.
+                    </p>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="btn-primary flex-1">Create Account</button>
+                    <button type="button" @click="showModal = false" class="btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
