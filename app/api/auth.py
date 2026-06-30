@@ -41,7 +41,12 @@ async def login_page(request: Request, db: Session = Depends(get_db)):
     csrf_token = generate_csrf_token()
     response = request.app.state.templates.TemplateResponse(
         "login.html",
-        {"request": request, "csrf_token": csrf_token, "error": None},
+        {
+            "request": request,
+            "csrf_token": csrf_token,
+            "error": None,
+            "register_mode": request.query_params.get("register") == "1",
+        },
     )
     set_csrf_cookie(response, csrf_token)
     return response
@@ -105,6 +110,78 @@ async def login_submit(request: Request, db: Session = Depends(get_db)):
     set_csrf_cookie(response, csrf_token)
 
     logger.info("User '%s' logged in from %s", username, ip)
+    return response
+
+
+@router.post("/register")
+async def register_submit(request: Request, db: Session = Depends(get_db)):
+    """Process registration form submission."""
+    form = await request.form()
+    username = form.get("username", "").strip()
+    password = form.get("password", "")
+    display_name = form.get("display_name", "").strip() or None
+
+    ip = get_client_ip(request)
+    
+    if len(password) < 8:
+        csrf_token = generate_csrf_token()
+        response = request.app.state.templates.TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "csrf_token": csrf_token,
+                "error": "Password must be at least 8 characters long.",
+                "reg_username": username,
+                "reg_display_name": display_name or "",
+                "register_mode": True,
+            },
+        )
+        set_csrf_cookie(response, csrf_token)
+        return response
+
+    auth_service = AuthService(db)
+    existing_user = auth_service.user_repo.get_by_username(username)
+    
+    if existing_user:
+        csrf_token = generate_csrf_token()
+        response = request.app.state.templates.TemplateResponse(
+            "login.html",
+            {
+                "request": request,
+                "csrf_token": csrf_token,
+                "error": "Username is already taken.",
+                "reg_username": username,
+                "reg_display_name": display_name or "",
+                "register_mode": True,
+            },
+        )
+        set_csrf_cookie(response, csrf_token)
+        return response
+
+    # Create new user
+    user = auth_service.create_user(
+        username=username,
+        password=password,
+        display_name=display_name,
+        is_admin=False,
+        force_password_change=False,
+    )
+    
+    # Initialize their default settings
+    from app.repositories.settings_repo import SettingsRepository
+    settings_repo = SettingsRepository(db)
+    settings_repo.get_for_user(user.id)
+    
+    logger.info("New user registered: '%s' from %s", username, ip)
+
+    # Automatically log them in
+    session_id = create_session_id()
+    store_session(session_id, user.id)
+
+    response = RedirectResponse(url="/", status_code=303)
+    set_session_cookie(response, session_id, False)
+    csrf_token = generate_csrf_token()
+    set_csrf_cookie(response, csrf_token)
     return response
 
 

@@ -14,8 +14,22 @@
         <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Professional flexitime tracking</p>
     </div>
 
-    <!-- Login card -->
-    <div class="card p-8">
+    <!-- Login/Register card -->
+    <div class="card p-8" x-data="{ isLogin: {{ 'false' if register_mode else 'true' }} }">
+        
+        <!-- Tabs -->
+        <div class="flex p-1 mb-6 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <button @click="isLogin = true" 
+                    :class="isLogin ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
+                    class="flex-1 py-2 text-sm rounded-md transition-all">
+                Sign In
+            </button>
+            <button @click="isLogin = false" 
+                    :class="!isLogin ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
+                    class="flex-1 py-2 text-sm rounded-md transition-all">
+                Create Account
+            </button>
+        </div>
         {% if error %}
         <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm flex items-center gap-3">
             <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
@@ -23,14 +37,14 @@
         </div>
         {% endif %}
 
-        <form method="POST" action="/login" class="space-y-5" id="login-form">
+        <form method="POST" action="/login" class="space-y-5" id="login-form" x-show="isLogin" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
             <div>
                 <label for="username" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Username</label>
                 <input type="text" id="username" name="username" value="{{ username | default('', true) }}"
                        class="input-field" placeholder="Enter your username"
-                       autofocus required autocomplete="username">
+                       required autocomplete="username">
             </div>
 
             <div>
@@ -49,6 +63,34 @@
 
             <button type="submit" class="btn-primary w-full" id="login-submit">
                 Sign In
+            </button>
+        </form>
+
+        <form method="POST" action="/register" class="space-y-5" id="register-form" x-show="!isLogin" style="display: none;" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div>
+                <label for="reg_username" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Username</label>
+                <input type="text" id="reg_username" name="username" value="{{ reg_username | default('', true) }}"
+                       class="input-field" placeholder="Choose a username"
+                       required pattern="[a-zA-Z0-9_.-]+" title="Alphanumeric, dots, dashes, underscores only">
+            </div>
+            
+            <div>
+                <label for="reg_display_name" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Display Name <span class="text-xs font-normal text-slate-400">(Optional)</span></label>
+                <input type="text" id="reg_display_name" name="display_name" value="{{ reg_display_name | default('', true) }}"
+                       class="input-field" placeholder="e.g. John Doe">
+            </div>
+
+            <div>
+                <label for="reg_password" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Password</label>
+                <input type="password" id="reg_password" name="password"
+                       class="input-field" placeholder="Create a strong password"
+                       required minlength="8">
+            </div>
+
+            <button type="submit" class="btn-primary w-full" id="register-submit">
+                Create Account
             </button>
         </form>
     </div>
