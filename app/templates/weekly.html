@@ -64,7 +64,21 @@
     <div class="space-y-3">
         {% for day in days %}
         <div class="card p-4 {% if day.is_today %}ring-2 ring-indigo-500 dark:ring-indigo-400{% endif %} {% if not day.is_working_day %}opacity-60{% endif %}"
-             x-data="{ editing: {% if day.is_today and not day.entry %}true{% else %}false{% endif %} }" id="day-{{ day.date }}">
+             x-data="{ 
+                 editing: {% if day.is_today and not day.entry %}true{% else %}false{% endif %},
+                 startTime: '{% if day.entry and day.entry.start_time %}{{ day.entry.start_time.strftime('%H:%M') }}{% endif %}',
+                 endTime: '{% if day.entry and day.entry.end_time %}{{ day.entry.end_time.strftime('%H:%M') }}{% endif %}',
+                 breakMins: {{ day.entry.break_minutes if day.entry else 0 }},
+                 hoursInput: '{% if day.entry %}{{ day.entry.hours_worked }}{% endif %}',
+                 updateHours() {
+                     if (this.startTime && this.endTime) {
+                         const calculated = window.calcHours(this.startTime, this.endTime, this.breakMins);
+                         if (calculated) this.hoursInput = calculated;
+                     }
+                 }
+             }" 
+             @keydown.enter.prevent="document.getElementById('save-{{ day.date }}').click()"
+             id="day-{{ day.date }}">
 
             <div class="flex items-center justify-between">
                 <!-- Day info -->
@@ -95,7 +109,7 @@
                         {% endif %}
                     </div>
                     {% endif %}
-                    <button @click="editing = !editing" class="btn-secondary p-2 text-xs" :title="editing ? 'Close' : 'Edit'">
+                    <button @click="editing = !editing; if(editing) $nextTick(() => $refs.hoursInput.focus())" class="btn-secondary p-2 text-xs" :title="editing ? 'Close' : 'Edit'">
                         <svg x-show="!editing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                         <svg x-show="editing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
@@ -113,26 +127,30 @@
                         <div class="col-span-2 sm:col-span-1">
                             <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Hours</label>
                             <input type="text" name="hours_input"
-                                   value="{% if day.entry %}{{ day.entry.hours_worked }}{% endif %}"
+                                   x-model="hoursInput"
+                                   x-ref="hoursInput"
                                    placeholder="e.g. 8, 8.5, 08:30-17:00"
                                    class="input-field text-sm" id="hours-{{ day.date }}">
                         </div>
                         <div>
                             <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Start</label>
                             <input type="time" name="start_time"
-                                   value="{% if day.entry and day.entry.start_time %}{{ day.entry.start_time.strftime('%H:%M') }}{% endif %}"
+                                   x-model="startTime"
+                                   @input="updateHours"
                                    class="input-field text-sm">
                         </div>
                         <div>
                             <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">End</label>
                             <input type="time" name="end_time"
-                                   value="{% if day.entry and day.entry.end_time %}{{ day.entry.end_time.strftime('%H:%M') }}{% endif %}"
+                                   x-model="endTime"
+                                   @input="updateHours"
                                    class="input-field text-sm">
                         </div>
                         <div>
                             <label class="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Break (min)</label>
                             <input type="number" name="break_minutes"
-                                   value="{{ day.entry.break_minutes if day.entry else 0 }}"
+                                   x-model="breakMins"
+                                   @input="updateHours"
                                    min="0" step="5" class="input-field text-sm">
                         </div>
                     </div>
