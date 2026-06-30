@@ -97,8 +97,8 @@ async def login_submit(request: Request, db: Session = Depends(get_db)):
     session_id = create_session_id()
     store_session(session_id, user.id)
 
-    # Redirect to password change if forced
-    redirect_url = "/" if not user.force_password_change else "/settings?change_password=1"
+    # Always redirect to dashboard, we will prompt for password change in the UI
+    redirect_url = "/"
     response = RedirectResponse(url=redirect_url, status_code=303)
     set_session_cookie(response, session_id, remember)
     csrf_token = generate_csrf_token()
