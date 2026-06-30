@@ -66,6 +66,8 @@ class EntryService:
             hours_worked = parsed.hours
             parsed_start = parsed.start_time
             parsed_end = parsed.end_time
+            if parsed.break_minutes is not None:
+                break_minutes = parsed.break_minutes
 
         # Parse start/end times if provided separately
         elif start_time and end_time:

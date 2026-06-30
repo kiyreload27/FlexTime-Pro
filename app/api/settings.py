@@ -131,11 +131,20 @@ async def create_backup(
     request: Request,
     user: User = Depends(get_current_user),
 ):
-    """Create a database backup."""
+    """Create a database backup and download it."""
     try:
+        from fastapi.responses import FileResponse
+        import os
+        
         backup_service = BackupService()
         backup_path = backup_service.create_backup(label="manual")
-        return RedirectResponse(url="/settings?saved=backup", status_code=303)
+        
+        return FileResponse(
+            path=str(backup_path),
+            filename=os.path.basename(backup_path),
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename={os.path.basename(backup_path)}"}
+        )
     except Exception as exc:
         logger.error("Backup failed: %s", exc)
         return RedirectResponse(

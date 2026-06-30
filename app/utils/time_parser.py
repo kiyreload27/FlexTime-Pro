@@ -23,6 +23,7 @@ class ParsedTime:
     hours: float
     start_time: Optional[datetime.time] = None
     end_time: Optional[datetime.time] = None
+    break_minutes: Optional[int] = None
 
 
 def parse_time_input(
@@ -60,36 +61,68 @@ def parse_time_input(
 
 
 def _parse_range(value: str, break_minutes: int) -> Optional[ParsedTime]:
-    """Parse '08:30 - 17:00' or '08:30-17:00' format."""
+    """Parse '08:30 - 17:00' or multiple ranges like '09:00-13:00, 16:00-20:00' format."""
+    parts = [p.strip() for p in value.split(",")]
     pattern = r"^(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})$"
-    match = re.match(pattern, value)
-    if not match:
+    
+    total_worked_minutes = 0
+    global_start_minutes = None
+    global_end_minutes = None
+    
+    for part in parts:
+        match = re.match(pattern, part)
+        if not match:
+            return None
+
+        start_h, start_m = int(match.group(1)), int(match.group(2))
+        end_h, end_m = int(match.group(3)), int(match.group(4))
+
+        if not (0 <= start_h <= 23 and 0 <= start_m <= 59):
+            raise ValueError(f"Invalid start time: {start_h}:{start_m:02d}")
+        if not (0 <= end_h <= 23 and 0 <= end_m <= 59):
+            raise ValueError(f"Invalid end time: {end_h}:{end_m:02d}")
+
+        start_minutes = start_h * 60 + start_m
+        end_minutes = end_h * 60 + end_m
+
+        # Handle overnight shifts for the segment
+        if end_minutes <= start_minutes:
+            end_minutes += 24 * 60
+            
+        if global_start_minutes is None or start_minutes < global_start_minutes:
+            global_start_minutes = start_minutes
+            
+        if global_end_minutes is None or end_minutes > global_end_minutes:
+            global_end_minutes = end_minutes
+            
+        total_worked_minutes += (end_minutes - start_minutes)
+
+    if global_start_minutes is None:
         return None
 
-    start_h, start_m = int(match.group(1)), int(match.group(2))
-    end_h, end_m = int(match.group(3)), int(match.group(4))
+    # Calculate break time
+    # If there are multiple shifts, break time is the gap between the overall start and end, minus worked time.
+    # If there's only one shift, we subtract the requested break_minutes from worked time.
+    if len(parts) > 1:
+        computed_break = global_end_minutes - global_start_minutes - total_worked_minutes
+        if computed_break < 0:
+            computed_break = 0
+    else:
+        computed_break = break_minutes
+        total_worked_minutes -= computed_break
+        if total_worked_minutes < 0:
+            total_worked_minutes = 0
 
-    if not (0 <= start_h <= 23 and 0 <= start_m <= 59):
-        raise ValueError(f"Invalid start time: {start_h}:{start_m:02d}")
-    if not (0 <= end_h <= 23 and 0 <= end_m <= 59):
-        raise ValueError(f"Invalid end time: {end_h}:{end_m:02d}")
-
-    start_time = datetime.time(start_h, start_m)
-    end_time = datetime.time(end_h, end_m)
-
-    start_minutes = start_h * 60 + start_m
-    end_minutes = end_h * 60 + end_m
-
-    # Handle overnight shifts
-    if end_minutes <= start_minutes:
-        end_minutes += 24 * 60
-
-    total_minutes = end_minutes - start_minutes - break_minutes
-    if total_minutes < 0:
-        total_minutes = 0
-
-    hours = round(total_minutes / 60, 2)
-    return ParsedTime(hours=hours, start_time=start_time, end_time=end_time)
+    hours = round(total_worked_minutes / 60, 2)
+    start_time = datetime.time((global_start_minutes // 60) % 24, global_start_minutes % 60)
+    end_time = datetime.time((global_end_minutes // 60) % 24, global_end_minutes % 60)
+    
+    return ParsedTime(
+        hours=hours, 
+        start_time=start_time, 
+        end_time=end_time, 
+        break_minutes=computed_break
+    )
 
 
 def _parse_hours_minutes_notation(

@@ -40,7 +40,14 @@
         <div class="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 last:border-b-0">
             {% for day in week_row %}
             {% if day %}
-            <button @click="openEntry('{{ day.date }}')"
+            <button @click="openEntry($event.currentTarget)"
+                    data-date="{{ day.date }}"
+                    data-hours="{{ day.entry.hours_worked if day.entry else '' }}"
+                    data-start="{{ day.entry.start_time.strftime('%H:%M') if day.entry and day.entry.start_time else '' }}"
+                    data-end="{{ day.entry.end_time.strftime('%H:%M') if day.entry and day.entry.end_time else '' }}"
+                    data-breaks="{{ day.entry.break_minutes if day.entry else 0 }}"
+                    data-leave-id="{{ day.entry.leave_type_id if day.entry else '' }}"
+                    data-notes="{{ day.entry.notes if day.entry else '' }}"
                     class="relative p-2 sm:p-3 min-h-[60px] sm:min-h-[80px] text-left border-r border-slate-100 dark:border-slate-800 last:border-r-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group
                     {% if day.is_today %}bg-indigo-50/50 dark:bg-indigo-900/10{% endif %}"
                     id="cal-{{ day.date }}">
@@ -109,26 +116,26 @@
                 <div class="space-y-3">
                     <div>
                         <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Hours</label>
-                        <input type="text" name="hours_input" placeholder="e.g. 8, 8.5, 08:30-17:00" class="input-field" id="modal-hours">
+                        <input type="text" name="hours_input" x-model="hoursInput" placeholder="e.g. 8, 8.5, 08:30-17:00" class="input-field" id="modal-hours">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Start</label>
-                            <input type="time" name="start_time" class="input-field">
+                            <input type="time" name="start_time" x-model="startTime" class="input-field">
                         </div>
                         <div>
                             <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">End</label>
-                            <input type="time" name="end_time" class="input-field">
+                            <input type="time" name="end_time" x-model="endTime" class="input-field">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Break (min)</label>
-                            <input type="number" name="break_minutes" value="0" min="0" step="5" class="input-field">
+                            <input type="number" name="break_minutes" x-model="breakMins" min="0" step="5" class="input-field">
                         </div>
                         <div>
                             <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Leave Type</label>
-                            <select name="leave_type_id" class="input-field">
+                            <select name="leave_type_id" x-model="leaveTypeId" class="input-field">
                                 <option value="">Normal Work</option>
                                 {% for lt in leave_types %}
                                 {% if lt.code != 'WORK' %}
@@ -140,7 +147,7 @@
                     </div>
                     <div>
                         <label class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1 block">Notes</label>
-                        <input type="text" name="notes" placeholder="Optional" class="input-field">
+                        <input type="text" name="notes" x-model="notes" placeholder="Optional" class="input-field">
                     </div>
                 </div>
 
@@ -158,8 +165,20 @@ function calendarApp() {
     return {
         showModal: false,
         selectedDate: '',
-        openEntry(date) {
-            this.selectedDate = date;
+        hoursInput: '',
+        startTime: '',
+        endTime: '',
+        breakMins: 0,
+        leaveTypeId: '',
+        notes: '',
+        openEntry(el) {
+            this.selectedDate = el.dataset.date;
+            this.hoursInput = el.dataset.hours || '';
+            this.startTime = el.dataset.start || '';
+            this.endTime = el.dataset.end || '';
+            this.breakMins = el.dataset.breaks || 0;
+            this.leaveTypeId = el.dataset.leaveId || '';
+            this.notes = el.dataset.notes || '';
             this.showModal = true;
             this.$nextTick(() => document.getElementById('modal-hours')?.focus());
         }
