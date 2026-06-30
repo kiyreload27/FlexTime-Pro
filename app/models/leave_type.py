@@ -39,4 +39,5 @@ DEFAULT_LEAVE_TYPES = [
     {"name": "Work From Home", "code": "WFH", "colour": "#14B8A6", "contributes_hours": False, "default_hours": 0, "is_system": True, "sort_order": 6},
     {"name": "Unpaid Leave", "code": "UNPAID", "colour": "#9CA3AF", "contributes_hours": False, "default_hours": 0, "is_system": True, "sort_order": 7},
     {"name": "Custom", "code": "CUSTOM", "colour": "#A855F7", "contributes_hours": False, "default_hours": 0, "is_system": False, "sort_order": 8},
+    {"name": "Day Off", "code": "DAY_OFF", "colour": "#94A3B8", "contributes_hours": False, "default_hours": 0, "is_system": True, "sort_order": 9},
 ]

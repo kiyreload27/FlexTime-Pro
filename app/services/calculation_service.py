@@ -117,6 +117,39 @@ class CalculationService:
         self.entry_repo = EntryRepository(db)
         self.settings_repo = SettingsRepository(db)
 
+    def _get_prorated_target(self, start_date: datetime.date, end_date: datetime.date, settings) -> float:
+        """Calculate the target for a date range using Capped Daily Accumulation.
+        
+        For each week that overlaps the range, we accrue `daily_target` for each day
+        from the start of the week, capping at `weekly_target`.
+        We only sum the target accrued on days that fall strictly within the requested date range.
+        This target is only calculated up to `today` (future days contribute 0).
+        """
+        total_target = 0.0
+        today = datetime.date.today()
+        
+        effective_end = end_date
+        if end_date > today:
+            effective_end = today
+            
+        if start_date > effective_end:
+            return 0.0
+            
+        current = start_date
+        while current <= effective_end:
+            day_offset = (current.isoweekday() - settings.first_day_of_week) % 7
+            days_passed = day_offset + 1
+            
+            target_up_to_today = min(settings.weekly_target, days_passed * settings.daily_target)
+            target_up_to_yesterday = min(settings.weekly_target, (days_passed - 1) * settings.daily_target)
+            
+            daily_contribution = target_up_to_today - target_up_to_yesterday
+            total_target += daily_contribution
+            
+            current += datetime.timedelta(days=1)
+            
+        return total_target
+
     def get_weekly_summary(
         self, user_id: int, year: int, week: int
     ) -> WeeklySummary:
@@ -129,23 +162,7 @@ class CalculationService:
         entries = self.entry_repo.get_by_date_range(user_id, start_date, end_date)
         hours_worked = sum(e.hours_worked for e in entries)
 
-        working_days = settings.get_working_days_list()
-        working_days_count = 0
-        today = datetime.date.today()
-        
-        effective_end_date = end_date
-        if start_date <= today <= end_date:
-            effective_end_date = today
-        elif today < start_date:
-            effective_end_date = start_date - datetime.timedelta(days=1)
-            
-        current = start_date
-        while current <= effective_end_date:
-            if current.isoweekday() in working_days:
-                working_days_count += 1
-            current += datetime.timedelta(days=1)
-
-        target = working_days_count * settings.daily_target
+        target = self._get_prorated_target(start_date, end_date, settings)
 
         summary = WeeklySummary(
             year=year,
@@ -173,20 +190,15 @@ class CalculationService:
 
         today = datetime.date.today()
 
+        today = datetime.date.today()
+
         # Calculate total worked hours
         all_entries = self.entry_repo.get_all(user_id)
         hours_worked = sum(e.hours_worked for e in all_entries if e.date <= today)
 
         # Calculate target up to today
-        working_days = settings.get_working_days_list()
-        working_days_count = 0
-        current = first_date
-        while current <= today:
-            if current.isoweekday() in working_days:
-                working_days_count += 1
-            current += datetime.timedelta(days=1)
-            
-        target = working_days_count * settings.daily_target
+        target = self._get_prorated_target(first_date, today, settings)
+        
         total_balance = hours_worked - target
 
         return round(total_balance, 2)
@@ -201,24 +213,10 @@ class CalculationService:
 
         hours_worked = sum(e.hours_worked for e in entries)
 
-        # Count working days in the month up to today
-        working_days = settings.get_working_days_list()
-        working_days_count = 0
-        today = datetime.date.today()
-        
-        effective_end_date = end_date
-        if start_date <= today <= end_date:
-            effective_end_date = today
-        elif today < start_date:
-            effective_end_date = start_date - datetime.timedelta(days=1)
-            
-        current = start_date
-        while current <= effective_end_date:
-            if current.isoweekday() in working_days:
-                working_days_count += 1
-            current += datetime.timedelta(days=1)
+        target = self._get_prorated_target(start_date, end_date, settings)
 
-        target = working_days_count * settings.daily_target
+        # Estimate working days for the response (using a standard 5 day week for averages)
+        working_days_count = len([1 for i in range((end_date - start_date).days + 1) if (start_date + datetime.timedelta(days=i)).isoweekday() <= 5])
 
         return MonthlySummary(
             year=year,
@@ -236,32 +234,18 @@ class CalculationService:
         entries = self.entry_repo.get_by_year(user_id, year)
         hours_worked = sum(e.hours_worked for e in entries)
 
-        # Count working days in the year up to today
-        working_days = settings.get_working_days_list()
-        start_date, end_date = get_year_date_range(year)
-        first_date = self.entry_repo.get_first_entry_date(user_id)
-        
+        # Calculate target up to today
         today = datetime.date.today()
+        first_date = self.entry_repo.get_first_entry_date(user_id)
         if first_date and first_date > start_date:
-            start_date = first_date
+            calc_start = first_date
+        else:
+            calc_start = start_date
             
-        effective_end_date = end_date
-        if start_date <= today <= end_date:
-            effective_end_date = today
-        elif today < start_date:
-            effective_end_date = start_date - datetime.timedelta(days=1)
-            
-        working_days_count = 0
-        current = start_date
-        while current <= effective_end_date:
-            if current.isoweekday() in working_days:
-                working_days_count += 1
-            current += datetime.timedelta(days=1)
-
-        target = working_days_count * settings.daily_target
+        target = self._get_prorated_target(calc_start, end_date, settings)
         
         # Approximate weeks worked for averages
-        weeks_count = round(working_days_count / max(1, len(working_days)), 1)
+        weeks_count = round(target / settings.weekly_target, 1) if settings.weekly_target > 0 else 1
         avg_weekly = round(hours_worked / max(1, weeks_count), 2)
 
         return YearlySummary(
@@ -387,22 +371,7 @@ class CalculationService:
             start, end = get_week_date_range(yr, wk, settings.first_day_of_week)
             h = self.entry_repo.get_weekly_hours_summary(user_id, start, end)
             
-            today = datetime.date.today()
-            effective_end = end
-            if start <= today <= end:
-                effective_end = today
-            elif today < start:
-                effective_end = start - datetime.timedelta(days=1)
-                
-            working_days_count = 0
-            current = start
-            working_days = settings.get_working_days_list()
-            while current <= effective_end:
-                if current.isoweekday() in working_days:
-                    working_days_count += 1
-                current += datetime.timedelta(days=1)
-                
-            target = working_days_count * settings.daily_target
+            target = self._get_prorated_target(start, end, settings)
             weekly_diffs[(yr, wk)] = h - target
 
         # Now build chart for last N weeks
