@@ -129,8 +129,23 @@ class CalculationService:
         entries = self.entry_repo.get_by_date_range(user_id, start_date, end_date)
         hours_worked = sum(e.hours_worked for e in entries)
 
-        # Calculate target based on leave entries that contribute hours
-        target = settings.weekly_target
+        working_days = settings.get_working_days_list()
+        working_days_count = 0
+        today = datetime.date.today()
+        
+        effective_end_date = end_date
+        if start_date <= today <= end_date:
+            effective_end_date = today
+        elif today < start_date:
+            effective_end_date = start_date - datetime.timedelta(days=1)
+            
+        current = start_date
+        while current <= effective_end_date:
+            if current.isoweekday() in working_days:
+                working_days_count += 1
+            current += datetime.timedelta(days=1)
+
+        target = working_days_count * settings.daily_target
 
         summary = WeeklySummary(
             year=year,
@@ -157,19 +172,22 @@ class CalculationService:
             return 0.0
 
         today = datetime.date.today()
-        current_iso = today.isocalendar()
-        first_iso = first_date.isocalendar()
 
-        total_balance = 0.0
-        weeks = get_weeks_in_range(first_date, today)
+        # Calculate total worked hours
+        all_entries = self.entry_repo.get_all(user_id)
+        hours_worked = sum(e.hours_worked for e in all_entries if e.date <= today)
 
-        for yr, wk in weeks:
-            start, end = get_week_date_range(yr, wk, settings.first_day_of_week)
-            hours = self.entry_repo.get_weekly_hours_summary(user_id, start, end)
-
-            # Only count full target for completed weeks or current week
-            target = settings.weekly_target
-            total_balance += hours - target
+        # Calculate target up to today
+        working_days = settings.get_working_days_list()
+        working_days_count = 0
+        current = first_date
+        while current <= today:
+            if current.isoweekday() in working_days:
+                working_days_count += 1
+            current += datetime.timedelta(days=1)
+            
+        target = working_days_count * settings.daily_target
+        total_balance = hours_worked - target
 
         return round(total_balance, 2)
 
@@ -183,11 +201,19 @@ class CalculationService:
 
         hours_worked = sum(e.hours_worked for e in entries)
 
-        # Count working days in the month
+        # Count working days in the month up to today
         working_days = settings.get_working_days_list()
         working_days_count = 0
+        today = datetime.date.today()
+        
+        effective_end_date = end_date
+        if start_date <= today <= end_date:
+            effective_end_date = today
+        elif today < start_date:
+            effective_end_date = start_date - datetime.timedelta(days=1)
+            
         current = start_date
-        while current <= end_date:
+        while current <= effective_end_date:
             if current.isoweekday() in working_days:
                 working_days_count += 1
             current += datetime.timedelta(days=1)
@@ -210,19 +236,33 @@ class CalculationService:
         entries = self.entry_repo.get_by_year(user_id, year)
         hours_worked = sum(e.hours_worked for e in entries)
 
-        # Count working days in the year
+        # Count working days in the year up to today
         working_days = settings.get_working_days_list()
         start_date, end_date = get_year_date_range(year)
+        first_date = self.entry_repo.get_first_entry_date(user_id)
+        
+        today = datetime.date.today()
+        if first_date and first_date > start_date:
+            start_date = first_date
+            
+        effective_end_date = end_date
+        if start_date <= today <= end_date:
+            effective_end_date = today
+        elif today < start_date:
+            effective_end_date = start_date - datetime.timedelta(days=1)
+            
+        working_days_count = 0
+        current = start_date
+        while current <= effective_end_date:
+            if current.isoweekday() in working_days:
+                working_days_count += 1
+            current += datetime.timedelta(days=1)
 
-        # Count weeks that have entries
-        weeks_with_entries = set()
-        for e in entries:
-            iso = e.date.isocalendar()
-            weeks_with_entries.add((iso[0], iso[1]))
-
-        weeks_count = len(weeks_with_entries) if weeks_with_entries else 1
-        target = weeks_count * settings.weekly_target
-        avg_weekly = round(hours_worked / weeks_count, 2) if weeks_count > 0 else 0
+        target = working_days_count * settings.daily_target
+        
+        # Approximate weeks worked for averages
+        weeks_count = round(working_days_count / max(1, len(working_days)), 1)
+        avg_weekly = round(hours_worked / max(1, weeks_count), 2)
 
         return YearlySummary(
             year=year,
@@ -346,7 +386,24 @@ class CalculationService:
         for yr, wk in all_weeks:
             start, end = get_week_date_range(yr, wk, settings.first_day_of_week)
             h = self.entry_repo.get_weekly_hours_summary(user_id, start, end)
-            weekly_diffs[(yr, wk)] = h - settings.weekly_target
+            
+            today = datetime.date.today()
+            effective_end = end
+            if start <= today <= end:
+                effective_end = today
+            elif today < start:
+                effective_end = start - datetime.timedelta(days=1)
+                
+            working_days_count = 0
+            current = start
+            working_days = settings.get_working_days_list()
+            while current <= effective_end:
+                if current.isoweekday() in working_days:
+                    working_days_count += 1
+                current += datetime.timedelta(days=1)
+                
+            target = working_days_count * settings.daily_target
+            weekly_diffs[(yr, wk)] = h - target
 
         # Now build chart for last N weeks
         cumulative = sum(
