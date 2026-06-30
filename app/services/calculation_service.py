@@ -235,6 +235,7 @@ class CalculationService:
         hours_worked = sum(e.hours_worked for e in entries)
 
         # Calculate target up to today
+        start_date, end_date = get_year_date_range(year)
         today = datetime.date.today()
         first_date = self.entry_repo.get_first_entry_date(user_id)
         if first_date and first_date > start_date:
