@@ -6,19 +6,20 @@
 <div class="space-y-6 animate-fade-in">
 
     <!-- Quick Actions -->
-    <div class="flex flex-wrap gap-3" x-data="{ quickHours: '' }">
-        <form method="POST" action="/entries/quick-add" class="flex gap-2 flex-1 min-w-[200px]">
+    <div class="flex flex-col sm:flex-row gap-3" x-data="{ quickHours: '' }">
+        <form method="POST" action="/entries/quick-add" class="flex gap-2 flex-1">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="text" name="hours" placeholder="Quick add hours (e.g. 8, 8.5, 08:30-17:00)"
                    class="input-field flex-1 text-sm" id="quick-add-input">
-            <button type="submit" class="btn-primary text-sm whitespace-nowrap" id="quick-add-btn">
+            <button type="submit" class="btn-primary text-sm whitespace-nowrap px-4" id="quick-add-btn">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Add Today
+                <span class="hidden xs:inline">Add Today</span>
+                <span class="xs:hidden">Add</span>
             </button>
         </form>
-        <form method="POST" action="/entries/copy-yesterday">
+        <form method="POST" action="/entries/copy-yesterday" class="sm:flex-none">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" class="btn-secondary text-sm whitespace-nowrap" id="copy-yesterday-btn">
+            <button type="submit" class="btn-secondary text-sm whitespace-nowrap w-full sm:w-auto justify-center" id="copy-yesterday-btn">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 Copy Yesterday
             </button>
