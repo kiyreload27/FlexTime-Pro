@@ -3,7 +3,7 @@
 {% block page_title %}Week {{ week }}, {{ year }}{% endblock %}
 
 {% block content %}
-<div class="space-y-6 animate-fade-in">
+<div class="space-y-6 animate-fade-in" x-data x-swipe.left="document.getElementById('next-week-btn').click()" x-swipe.right="document.getElementById('prev-week-btn').click()">
 
     <!-- Week Navigation -->
     <div class="flex items-center justify-between flex-wrap gap-3">

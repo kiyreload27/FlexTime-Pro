@@ -14,6 +14,21 @@ window.showToast = function(message, type = 'success', duration = 3000) {
     }, duration);
 };
 
+// Haptic feedback helper
+window.hapticVibrate = function(pattern = 30) {
+    if (navigator.vibrate) {
+        navigator.vibrate(pattern);
+    }
+};
+
+// Global click haptics for interactive elements
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('button, a.btn-primary, a.btn-secondary, a.btn-danger, .nav-link, .card');
+    if (target) {
+        window.hapticVibrate(15); // Very light tap
+    }
+});
+
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
     // Ctrl/Cmd + S = Save (prevent default, submit active form)
@@ -90,6 +105,8 @@ document.addEventListener('submit', function(e) {
         // Prevent double clicks
         submitBtn.disabled = true;
         
+        window.hapticVibrate([30, 50, 30]); // More pronounced haptic on save
+        
         // Add visual loading state
         const originalHtml = submitBtn.innerHTML;
         submitBtn.setAttribute('data-original-html', originalHtml);
@@ -105,3 +122,27 @@ document.addEventListener('submit', function(e) {
 });
 
 console.log('%c FlexTime Pro ', 'background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-size: 14px; padding: 4px 12px; border-radius: 6px; font-weight: bold;');
+
+// Alpine.js swipe directive
+document.addEventListener('alpine:init', () => {
+    Alpine.directive('swipe', (el, { expression, modifiers }, { evaluateLater, cleanup }) => {
+        let touchstartX = 0;
+        let touchendX = 0;
+        const threshold = 50;
+        const handleGesture = () => {
+            if (touchendX < touchstartX - threshold && modifiers.includes('left')) evaluateLater(expression)();
+            if (touchendX > touchstartX + threshold && modifiers.includes('right')) evaluateLater(expression)();
+        };
+        const touchStart = e => touchstartX = e.changedTouches[0].screenX;
+        const touchEnd = e => {
+            touchendX = e.changedTouches[0].screenX;
+            handleGesture();
+        };
+        el.addEventListener('touchstart', touchStart, { passive: true });
+        el.addEventListener('touchend', touchEnd, { passive: true });
+        cleanup(() => {
+            el.removeEventListener('touchstart', touchStart);
+            el.removeEventListener('touchend', touchEnd);
+        });
+    });
+});

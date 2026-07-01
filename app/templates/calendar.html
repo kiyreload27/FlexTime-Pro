@@ -3,7 +3,7 @@
 {% block page_title %}{{ month_name }} {{ year }}{% endblock %}
 
 {% block content %}
-<div class="space-y-6 animate-fade-in" x-data="calendarApp()">
+<div class="space-y-6 animate-fade-in" x-data="calendarApp()" x-swipe.left="document.getElementById('next-month-btn').click()" x-swipe.right="document.getElementById('prev-month-btn').click()">
 
     <!-- Month Navigation -->
     <div class="flex items-center justify-between">
