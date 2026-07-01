@@ -2,7 +2,7 @@
 <html lang="en" x-data="{ darkMode: localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && true) }" :class="{ 'dark': darkMode }">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="FlexTime Pro — Professional flexitime tracking application">
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -144,11 +144,33 @@
             </header>
 
             <!-- Page content -->
-            <main class="flex-1 overflow-y-auto">
+            <main class="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
                 <div class="p-4 lg:p-6 max-w-7xl mx-auto w-full">
                     {% block content %}{% endblock %}
                 </div>
             </main>
+
+            <!-- Bottom Navigation for Mobile -->
+            <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-40 pb-[env(safe-area-inset-bottom)]">
+                <div class="flex justify-around items-center h-16 px-2">
+                    <a href="/" class="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 {% if current_path == '/' %}text-indigo-600 dark:text-indigo-400{% endif %}">
+                        <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                        <span class="text-[10px] font-medium">Dashboard</span>
+                    </a>
+                    <a href="/entries/" class="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 {% if '/entries' in current_path %}text-indigo-600 dark:text-indigo-400{% endif %}">
+                        <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <span class="text-[10px] font-medium">Entry</span>
+                    </a>
+                    <a href="/calendar/" class="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 {% if '/calendar' in current_path %}text-indigo-600 dark:text-indigo-400{% endif %}">
+                        <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span class="text-[10px] font-medium">Calendar</span>
+                    </a>
+                    <button @click="sidebarOpen = true" class="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400">
+                        <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        <span class="text-[10px] font-medium">Menu</span>
+                    </button>
+                </div>
+            </nav>
         </div>
     </div>
     {% else %}
@@ -170,6 +192,44 @@
          class="fixed bottom-4 right-4 px-6 py-3 rounded-xl text-white text-sm font-medium shadow-2xl z-[100] flex items-center gap-2"
          style="display: none;">
         <span x-text="message"></span>
+    </div>
+
+    <!-- iOS PWA Install Prompt -->
+    <div x-data="{
+             showPrompt: false,
+             init() {
+                 const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+                 const isStandalone = () => ('standalone' in window.navigator) && window.navigator.standalone;
+                 const promptDismissed = localStorage.getItem('iosInstallPromptDismissed') === 'true';
+                 if (isIos() && !isStandalone() && !promptDismissed) {
+                     setTimeout(() => { this.showPrompt = true; }, 3000);
+                 }
+             },
+             dismiss() {
+                 this.showPrompt = false;
+                 localStorage.setItem('iosInstallPromptDismissed', 'true');
+             }
+         }" 
+         x-show="showPrompt" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="translate-y-full opacity-0"
+         x-transition:enter-end="translate-y-0 opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="translate-y-0 opacity-100"
+         x-transition:leave-end="translate-y-full opacity-0"
+         class="fixed bottom-0 left-0 right-0 z-[60] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] rounded-t-2xl lg:hidden"
+         style="display: none;">
+        <div class="flex items-start justify-between">
+            <div class="flex-1 mr-4">
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-1">Install FlexTime Pro</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Install this app on your device for quick and easy access. Tap <svg class="inline w-4 h-4 text-blue-500 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg> then "Add to Home Screen".
+                </p>
+            </div>
+            <button @click="dismiss()" class="text-slate-400 hover:text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-full p-1.5 flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
     </div>
 
     <!-- App JS -->
